@@ -1,23 +1,24 @@
 import {Request, Response} from "express";
-import type { User } from "../types/user.types.js";
+import {db} from "../prisma/db.js"
+import bcrypt from "bcrypt"
 
-let users: User[] = [];
 
-export const createUser = (req: Request, res: Response) =>{
-    const {name, email} = req.body;
 
-    if(!name || !email) {
+export const createUser = async (req: Request, res: Response) =>{
+    const {name, email, password} = req.body;
+
+    if(!name || !email || !password) {
         res.status(400).json({
             success: false,
-            message: "Name and email are required"
+            message: "Name and email and password are required"
         });
 
         return;
     }
 
-    const existingUser = users.find(
-        (user) => user.email === email
-    );
+    const existingUser = await db.orm.public.User.where({
+        email
+    }).first();
 
     if(existingUser) {
         res.status(409).json({
@@ -28,33 +29,40 @@ export const createUser = (req: Request, res: Response) =>{
         return;
     }
 
-    const user : User = {
-        id: users.length + 1,
-        name,
-        email
-    };
 
-    users.push(user);
+    const hashedPassword = await bcrypt.hash(password,10);
+
+
+    const user = await db.orm.public.User.create({
+        name,
+        email,
+        password: hashedPassword,
+    });
+
+    const {password: _, ...safeUser} = user;
 
     res.status(201).json({
         success: true,
-        user
+        user: safeUser
     });
 };
 
-export const getUsers = (req: Request, res: Response) =>{
+export const getUsers = async (req: Request, res: Response) =>{
+    const users = await db.orm.public.User.all();
+
     res.json({
         success: true,
         users
     });
 };
 
-export const getUserById = (req: Request, res: Response) => {
+export const getUserById = async (req: Request, res: Response) => {
     const id = Number(req.params.id);
 
-    const user = users.find(
-        (user) => user.id === id
-    );
+
+    const user = await db.orm.public.User.where({
+        id
+    }).first();
 
     if(!user) {
         res.status(404).json({
