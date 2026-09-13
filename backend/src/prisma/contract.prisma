@@ -8,3 +8,16 @@ model User {
   createdAt DateTime                   @default(now())
   updatedAt temporal.updatedAt()
 }
+
+
+model Session {
+  id                  Int         @id @default(autoincrement())
+  userId              Int
+  refreshTokenHash    String
+  userAgent           String?
+  ipAddress           String?
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           temporal.updatedAt()
+}

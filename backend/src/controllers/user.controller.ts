@@ -48,11 +48,14 @@ export const createUser = async (req: Request, res: Response) =>{
 };
 
 export const getUsers = async (req: Request, res: Response) =>{
+
     const users = await db.orm.public.User.all();
+
+    const safeUsers = users.map(({password, ...user}) => user);
 
     res.json({
         success: true,
-        users
+        users: safeUsers
     });
 };
 

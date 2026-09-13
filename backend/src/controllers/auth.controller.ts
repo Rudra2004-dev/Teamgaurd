@@ -1,6 +1,7 @@
 import {Request, Response} from "express";
 import { db } from "../prisma/db";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 export const login = async (req: Request, res: Response) => {
     const {email, password} = req.body;
@@ -42,9 +43,21 @@ export const login = async (req: Request, res: Response) => {
         return;
     }
 
+    const token = jwt.sign(
+        {
+            userId: user.id,
+            role: user.role
+        },
+        process.env.JWT_SECRET!,
+        {
+            expiresIn: "15m"
+        }
+    );
+
     res.json({
         success: true,
-        message: "Login successful"
+        message: "Login successful",
+        token
     });
     ;
 }
