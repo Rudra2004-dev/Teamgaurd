@@ -146,6 +146,23 @@ export const refresh = async (req: Request, res: Response) => {
 
     }
 
+
+    const user = await db.orm.public.User
+        .where({
+            id: session.userId
+        })
+        .first();
+
+        if(!user) {
+            res.status(401).json({
+                success: false,
+                message: "User not found"
+            });
+
+            return;
+
+        }
+
     const newRefreshToken = generateRefreshToken();
     const newRefreshTokenHash = await hashRefreshToken(newRefreshToken);
 
@@ -179,6 +196,7 @@ export const refresh = async (req: Request, res: Response) => {
 
 
 export const logout = async (req: Request, res: Response) => {
+    console.log("Logout user:", req.user);
     const {sessionId} = req.body;
 
     if(!sessionId){
@@ -207,6 +225,16 @@ export const logout = async (req: Request, res: Response) => {
 
           }
 
+          if(session.userId !== req.user!.userId){
+            res.status(403).json({
+                success: false,
+                message: "You cannot logout this session"
+            });
+
+            return;
+
+          }
+
           await db.orm.public.Session
               .where({
                 id:session.id
@@ -220,4 +248,47 @@ export const logout = async (req: Request, res: Response) => {
                 message: "Logout successful"
               });
               
+};
+
+
+export const logoutAll = async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+
+    await db.orm.public.Session
+        .where({
+            userId
+        })
+        .update({
+            revokedAt: Temporal.Now.instant()
+        });
+
+        res.json({
+            success: true,
+            message: "Logged out from all devices"
+        });
+};
+
+
+export const getSessions = async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+
+    const sessions = await db.orm.public.Session
+        .where({
+            userId
+        })
+        .all();
+
+    const safeSessions = sessions.map((session) => {
+        const {
+            refreshTokenHash,
+            ...safeSession
+        } = session;
+
+        return safeSession;
+    });    
+
+    res.json({
+        success: true,
+        sessions: safeSessions
+    });    
 };
