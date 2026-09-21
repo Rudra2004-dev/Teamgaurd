@@ -292,3 +292,55 @@ export const getSessions = async (req: Request, res: Response) => {
         sessions: safeSessions
     });    
 };
+
+
+
+export const revokeSession = async (req: Request, res: Response) => {
+    const sessionId = Number(req.params.id);
+
+    if(!sessionId) {
+        res.status(400).json({
+            success: false,
+            message: "Valid session ID is required"
+        });
+
+        return;
+    }
+
+    const session = await db.orm.public.Session
+        .where({
+            id: sessionId
+        })
+        .first();
+
+    if(!session) {
+        res.status(404).json({
+            success: false,
+            message: "Session not found"
+        });
+
+        return;
+    }    
+
+    if(session.userId !== req.user!.userId) {
+        res.status(403).json({
+            success: false,
+            message: "You cannot revoke this session"
+        });
+
+        return;
+    }
+
+    await db.orm.public.Session
+        .where({
+            id: session.id
+        })
+        .update({
+             revokedAt: Temporal.Now.instant()
+        });
+
+    res.json({
+        success: true,
+        message: "Session revoked successfully"
+    });    
+};
