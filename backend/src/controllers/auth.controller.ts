@@ -2,7 +2,7 @@ import {Request, Response} from "express";
 import { db } from "../prisma/db";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { generateRefreshToken, hashRefreshToken } from "../utils/token.utils";
+import { generateRefreshToken, hashRefreshToken, generatePasswordResetToken } from "../utils/token.utils";
 import { Temporal } from "temporal-polyfill";
 
 export const login = async (req: Request, res: Response) => {
@@ -343,4 +343,143 @@ export const revokeSession = async (req: Request, res: Response) => {
         success: true,
         message: "Session revoked successfully"
     });    
+};
+
+
+export const forgotPassword = async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    if (!email) {
+        res.status(400).json({
+            success: false,
+            message: "Email is required"
+        });
+        return;
+    }
+
+    const user = await db.orm.public.User
+        .where({
+            email
+        })
+        .first();
+
+    if (!user) {
+        res.json({
+            success: true,
+            message: "If an account exists with this email, a reset link has been sent"
+        });
+        return;
+    }
+
+    const resetToken = generatePasswordResetToken();
+
+    const tokenHash = await bcrypt.hash(
+        resetToken,
+        10
+    );
+
+    const expiresAt = Temporal.Now.instant().add({
+        seconds: 15 * 60
+    });
+
+    await db.orm.public.PasswordResetToken.create({
+        userId: user.id,
+        tokenHash,
+        expiresAt
+    });
+
+    console.log("PASSWORD RESET TOKEN:", resetToken);
+
+    res.json({
+        success: true,
+        message: "If an account exists with this email, a reset link has been sent"
+    });
+};
+
+
+export const resetPassword = async (req: Request, res: Response) => {
+    const { token, userId, newPassword } = req.body;
+
+    if (!token || !userId || !newPassword) {
+        res.status(400).json({
+            success: false,
+            message: "Token, user ID, and new password are required"
+        });
+        return;
+    }
+
+    const resetToken = await db.orm.public.PasswordResetToken
+        .where({
+            userId: Number(userId),
+            usedAt: null
+        })
+        .first();
+
+    if (!resetToken) {
+        res.status(400).json({
+            success: false,
+            message: "Invalid or already used reset token"
+        });
+        return;
+    }
+
+    if (
+        Temporal.Instant.compare(
+            Temporal.Now.instant(),
+            resetToken.expiresAt
+        ) >= 0
+    ) {
+        res.status(400).json({
+            success: false,
+            message: "Reset token has expired"
+        });
+        return;
+    }
+
+    const tokenMatches = await bcrypt.compare(
+        token,
+        resetToken.tokenHash
+    );
+
+    if (!tokenMatches) {
+        res.status(400).json({
+            success: false,
+            message: "Invalid reset token"
+        });
+        return;
+    }
+
+    const hashedPassword = await bcrypt.hash(
+        newPassword,
+        10
+    );
+
+    await db.orm.public.User
+        .where({
+            id: Number(userId)
+        })
+        .update({
+            password: hashedPassword
+        });
+
+    await db.orm.public.PasswordResetToken
+        .where({
+            id: resetToken.id
+        })
+        .update({
+            usedAt: Temporal.Now.instant()
+        });
+
+    await db.orm.public.Session
+        .where({
+            userId: Number(userId)
+        })
+        .update({
+            revokedAt: Temporal.Now.instant()
+        });
+
+    res.json({
+        success: true,
+        message: "Password reset successful"
+    });
 };

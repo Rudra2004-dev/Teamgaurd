@@ -9,3 +9,7 @@ export const generateRefreshToken = () => {
 export const hashRefreshToken = async (token: string) => {
     return bcrypt.hash(token, 10);
 }
+
+export const generatePasswordResetToken = () => {
+    return crypto.randomBytes(32).toString("hex");
+};
