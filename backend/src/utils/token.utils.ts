@@ -13,3 +13,8 @@ export const hashRefreshToken = async (token: string) => {
 export const generatePasswordResetToken = () => {
     return crypto.randomBytes(32).toString("hex");
 };
+
+
+export const generateEmailVerificationToken = () => {
+    return crypto.randomBytes(32).toString("hex");
+};

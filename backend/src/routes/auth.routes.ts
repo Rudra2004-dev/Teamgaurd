@@ -1,5 +1,5 @@
 import { Router } from "express";
-import {forgotPassword, getSessions, login,logout,logoutAll,refresh, revokeSession, resetPassword} from "../controllers/auth.controller.js";
+import {forgotPassword, getSessions, login,logout,logoutAll,refresh, revokeSession, resetPassword, sendVerificationEmail} from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = Router();
@@ -12,6 +12,7 @@ router.get("/sessions", authMiddleware, getSessions);
 router.delete("/sessions/:id", authMiddleware, revokeSession);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+router.post("/send-verification",authMiddleware,sendVerificationEmail);
 
 
 export default router;

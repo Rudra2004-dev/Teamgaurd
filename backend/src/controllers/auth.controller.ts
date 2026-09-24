@@ -2,7 +2,7 @@ import {Request, Response} from "express";
 import { db } from "../prisma/db";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { generateRefreshToken, hashRefreshToken, generatePasswordResetToken } from "../utils/token.utils";
+import { generateRefreshToken, hashRefreshToken, generatePasswordResetToken, generateEmailVerificationToken } from "../utils/token.utils";
 import { Temporal } from "temporal-polyfill";
 
 export const login = async (req: Request, res: Response) => {
@@ -408,12 +408,14 @@ export const resetPassword = async (req: Request, res: Response) => {
         return;
     }
 
-    const resetToken = await db.orm.public.PasswordResetToken
+    const resetTokens = await db.orm.public.PasswordResetToken
         .where({
             userId: Number(userId),
             usedAt: null
         })
-        .first();
+        .all();
+
+    const resetToken = resetTokens.sort((a,b) => b.id - a.id)[0];    
 
     if (!resetToken) {
         res.status(400).json({
@@ -481,5 +483,63 @@ export const resetPassword = async (req: Request, res: Response) => {
     res.json({
         success: true,
         message: "Password reset successful"
+    });
+};
+
+
+export const sendVerificationEmail = async (
+    req: Request,
+    res: Response
+) => {
+    const userId = req.user!.userId;
+
+    const user = await db.orm.public.User
+        .where({
+            id: userId
+        })
+        .first();
+
+    if (!user) {
+        res.status(404).json({
+            success: false,
+            message: "User not found"
+        });
+        return;
+    }
+
+    if (user.emailVerified) {
+        res.status(400).json({
+            success: false,
+            message: "Email is already verified"
+        });
+        return;
+    }
+
+    const verificationToken =
+        generateEmailVerificationToken();
+
+    const tokenHash = await bcrypt.hash(
+        verificationToken,
+        10
+    );
+
+    const expiresAt = Temporal.Now.instant().add({
+        seconds: 15 * 60
+    });
+
+    await db.orm.public.EmailVerificationToken.create({
+        userId: user.id,
+        tokenHash,
+        expiresAt
+    });
+
+    console.log(
+        "EMAIL VERIFICATION TOKEN:",
+        verificationToken
+    );
+
+    res.json({
+        success: true,
+        message: "Verification email sent"
     });
 };

@@ -1,12 +1,13 @@
 // use prisma-next
 model User {
-  id        Int                        @id @default(autoincrement())
-  name      String
-  email     String                     @unique
-  password  String
-  role      String                     @default("EMPLOYEE")
-  createdAt DateTime                   @default(now())
-  updatedAt temporal.updatedAt()
+  id              Int                        @id @default(autoincrement())
+  name            String
+  email           String                     @unique
+  password        String
+  role            String                     @default("EMPLOYEE")
+  emailVerified   Boolean                    @default(false)
+  createdAt       DateTime                   @default(now())
+  updatedAt       temporal.updatedAt()
 }
 
 
@@ -18,7 +19,7 @@ model Session {
   ipAddress           String?
   expiresAt           DateTime
   revokedAt           DateTime?
-  createdAt           DateTime @default(now())
+  createdAt           DateTime    @default(now())
   updatedAt           temporal.updatedAt()
 }
 
@@ -29,5 +30,14 @@ model PasswordResetToken {
   tokenHash           String
   expiresAt           DateTime
   usedAt              DateTime?
-  createdAt           DateTime @default(now())
+  createdAt           DateTime    @default(now())
+}
+
+model EmailVerificationToken {
+  id                 Int         @id @default(autoincrement())
+  userId             Int
+  tokenHash          String
+  expiresAt          DateTime
+  usedAt             DateTime?
+  createdAt          DateTime    @default(now())
 }
