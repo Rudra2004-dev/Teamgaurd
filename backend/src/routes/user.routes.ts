@@ -8,6 +8,6 @@ const router = Router();
 
 router.post("/",authMiddleware, requirePermission("CREATE_USER"), createUser);
 router.get("/", authMiddleware, requireRole("ADMIN", "SUPER_ADMIN"), getUsers);
-router.get("/:id", getUserById);
+router.get("/:id", authMiddleware, getUserById);
 
 export default router;

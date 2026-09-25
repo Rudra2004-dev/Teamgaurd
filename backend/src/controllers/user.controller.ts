@@ -60,11 +60,26 @@ export const getUsers = async (req: Request, res: Response) =>{
 };
 
 export const getUserById = async (req: Request, res: Response) => {
-    const id = Number(req.params.id);
+    const requestedUserId = Number(req.params.id);
+    const currentUserId = req.user!.userId;
+    const currentUserRole = req.user!.role;
 
+    // Authorization: Users can view their own profile OR admins can view any profile
+    const isOwnProfile = requestedUserId === currentUserId;
+    const isAdmin = currentUserRole === "ADMIN" || currentUserRole === "SUPER_ADMIN";
 
+    if (!isOwnProfile && !isAdmin) {
+        res.status(403).json({
+            success: false,
+            message: "Access denied"
+        });
+
+        return;
+    }
+
+    // Fetch user from database (only if authorized)
     const user = await db.orm.public.User.where({
-        id
+        id: requestedUserId
     }).first();
 
     if(!user) {
@@ -76,8 +91,10 @@ export const getUserById = async (req: Request, res: Response) => {
         return;
     }
 
+    const {password, ...safeUser} = user;
+
     res.json({
         success: true,
-        user
+        user: safeUser
     });
 };
